@@ -1,7 +1,193 @@
 ﻿@page "/"
-
+@using System.Globalization
+@inject AuthenticationStateProvider _AuthenticationStateProvider
+@inject IJSRuntime _JS
+@inject NavigationManager _NavigationManager
+@inject IProductRepository _productRepository
+@inject ICategoryRepository _categoryRepository
+@inject IShoppingCartRepository _cartRepository
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
 
-Welcome to your new app.
+@if (IsProcessing)
+{
+    <div class="position-absolute w-100 vh-100 d-flex flex-column align-items-center bg-white justify-content-center">
+        <img src="/images/loading.gif" />
+
+    </div>
+}
+else
+{
+    <div class="container-fluid px-0 m-0 full-width">
+        <div class="jumbotron-custom">
+            <div class="m-auto d-flex align-items-center" style="width: 400px; height: 50vh;">
+
+                <div class="d-flex align-items-center" style="width: 100%;">
+                    <input type="text" class="form-control rounded-pill"
+                           @bind:event="oninput" @bind:get="_searchText" @bind:set="FilterProductByName"
+                           placeholder="Search for Food Items!"
+                           style="width: 100%; padding: 20px;">
+                    <span style="position: relative; left: -43px;"><i class="bi bi-search"></i></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content px-4 m-2">
+            <ul class="nav nav-underline justify-content-center mb-2">
+                <li class="nav-item">
+                    <span class="nav-link @SeciliKategori(0)" href="#" style="cursor: pointer " @onclick="()=>FilterProducts(0)">All</span>
+                </li>
+                @foreach (var category in Categories)
+                {
+                    <li class="nav-item">
+                        <span class="nav-link @SeciliKategori(category.Id)" href="#" style="cursor: pointer" @onclick="()=>FilterProducts(category.Id)">@category.Name</span>
+                    </li>
+                }
+                
+            </ul>
+            <div class="row mt-4 mx-1">
+                @foreach (var prod in FilteredProducts)
+                {
+                    <div class="col-12 col-md-6 col-lg-4 pe-3 mb-5">
+                        <div class="card">
+                            <div class="mt-3 mb-2 row">
+                                <div class="col-6 px-3">
+                                    @if (!string.IsNullOrEmpty(prod.SpecialTag))
+                                    {
+                                        <i class="bi bi-star btn btn-outline-success disabled"> SpecialTag</i>
+                                    }
+
+                                </div>
+                                <div class="col-6 text-danger h3 text-end px-3">
+                                    @prod.Price.ToString("C", CultureInfo.GetCultureInfo("en-us"))
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                @if (!string.IsNullOrEmpty(prod.ImageUrl))
+                                {
+                                    <img class="card-img-top img-thumbnail img-rounded w-50 mt-2" src="@prod.ImageUrl" style="">
+                                }
+                                else
+                                {
+                                    <img class="card-img-top img-thumbnail img-rounded w-50 mt-2" src="images/default.png" style="">
+                                }
+
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title text-center lead text-success">@prod.Name</h5>
+                                <p class="card-text mt-2">@((MarkupString)prod.Description)</p>
+                                <h4 class="text-center">
+                                    <div class="m-lg-auto p-2" @onclick="()=>AddOrderItem(prod)">
+                                        <i class="bi bi-cart3 btn btn-success text-right  form-control px-5" style="width:300px"> Add to cart</i>
+                                    </div>
+                                    
+                                </h4>
+
+
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+
+
+
+
+
+
+
+@code {
+    private IEnumerable<Product> Products = new List<Product>();
+    private IEnumerable<Category> Categories = new List<Category>();
+    private IEnumerable<Product> FilteredProducts = new List<Product>();
+    private bool IsProcessing { get; set; } = true;
+    private int _selectedCategories = 0;
+    private string _searchText = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadProducts();
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+    private async Task LoadProducts()
+    {
+        Products = await _productRepository.GetAllAsync();
+        Categories = await _categoryRepository.GetAllAsync();
+        FilterProducts(0);
+    }
+
+    private void FilterProducts(int categoryId)
+    {
+        if(categoryId == 0)
+        {
+            FilteredProducts = Products;
+            _selectedCategories = categoryId;
+            return;
+        }
+        else
+        {
+            FilteredProducts = Products.Where(u => u.CategoryId == categoryId).ToList();
+            _selectedCategories = categoryId;
+            _searchText = String.Empty;
+        }
+    }
+
+    private void FilterProductByName(string newSearchOfText)
+    {
+        if (string.IsNullOrWhiteSpace(newSearchOfText))
+        {
+            FilteredProducts = Products;
+        }
+        else
+        {
+            FilteredProducts = Products.Where(u => u.Name.Contains(newSearchOfText, StringComparison.InvariantCultureIgnoreCase)).ToList();
+        }
+        _searchText = newSearchOfText;
+    }
+
+    private string SeciliKategori(int categoryId)
+    {
+        return categoryId == _selectedCategories ? "active" : string.Empty;
+    }
+
+    private async Task AddOrderItem(Product product)
+    {
+        var authState = await _AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var authenticated = user.Identity is not null && user.Identity.IsAuthenticated;
+
+        if (!authenticated)
+        {
+            _NavigationManager.NavigateTo("account/login");
+        }
+        else
+        {
+            //item ekleme sepete
+            var result = await _cartRepository.UpdateCartAsync(user.FindFirst(u => u.Type.Contains("nameidentifier"))?.Value, product.Id, 1);
+            if (result)
+            {
+                _JS?.ToastrSuccess("Product added Successfully");
+            }
+            else
+            {
+                _JS?.ToastrError("Error");
+            }
+
+        }
+    }
+
+
+
+
+
+
+}
+

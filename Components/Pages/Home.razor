@@ -1,13 +1,11 @@
 ﻿@page "/"
 @using System.Globalization
-@using YumBlazor.Services
 @inject AuthenticationStateProvider _AuthenticationStateProvider
 @inject IJSRuntime _JS
 @inject NavigationManager _NavigationManager
 @inject IProductRepository _productRepository
 @inject ICategoryRepository _categoryRepository
 @inject IShoppingCartRepository _cartRepository
-@inject SharedStateService _sharedStateService
 <PageTitle>Home</PageTitle>
 
 
@@ -33,7 +31,7 @@ else
                 </div>
             </div>
         </div>
-        @* <RadzenButton  Text="Hi"></RadzenButton> *@
+
         <div class="content px-4 m-2">
             <ul class="nav nav-underline justify-content-center mb-2">
                 <li class="nav-item">
@@ -173,9 +171,7 @@ else
         else
         {
             //item ekleme sepete
-            var userId = user.FindFirst(u => u.Type.Contains("nameidentifier"))?.Value;
-            var result = await _cartRepository.UpdateCartAsync(userId, product.Id, 1);
-            _sharedStateService.TotalCartCount = await _cartRepository.GetTotalCartCountAsync(userId);
+            var result = await _cartRepository.UpdateCartAsync(user.FindFirst(u => u.Type.Contains("nameidentifier"))?.Value, product.Id, 1);
             if (result)
             {
                 _JS?.ToastrSuccess("Product added Successfully");

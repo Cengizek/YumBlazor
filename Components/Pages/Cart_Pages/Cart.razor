@@ -1,14 +1,12 @@
 ﻿@page "/cart"
 @using System.Globalization
 @using Microsoft.AspNetCore.Authorization
-@using YumBlazor.Services
 @using YumBlazor.Utility
 @inject AuthenticationStateProvider _AuthenticationStateProvider
 @inject IJSRuntime _JS
 @inject IShoppingCartRepository _cartRepository
 @inject IOrderRepository _orderRepository
 @inject NavigationManager _navigationManager
-@inject SharedStateService _sharedStateService
 @attribute [Authorize]
 
 @if (IsProcessing)
@@ -179,7 +177,6 @@ else
 
         // sepete item ekle
         var result = await _cartRepository.UpdateCartAsync(OrderHeader.UserId, product, updateBy);
-        _sharedStateService.TotalCartCount = await _cartRepository.GetTotalCartCountAsync(OrderHeader.UserId);
         await LoadCart();
     }
 

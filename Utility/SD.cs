@@ -8,6 +8,7 @@ namespace YumBlazor.Utility
         public static string Role_Admin = "Admin";
 
         public static string StatusPending = "Pending";
+        public static string StatusApproved = "Approved";
         public static string StatusReadyToPickUp = "ReadyToPickUp";
         public static string StatusCompleted = "Completed";
         public static string StatusCancelled = "Cancelled";

@@ -1,5 +1,9 @@
 ﻿@page "/order/details/{Id:int}"
+@using System.Globalization
+@using YumBlazor.Utility
 @inject IOrderRepository _orderRepository
+@inject AuthenticationStateProvider _AuthenticationStateProvider
+@inject IJSRuntime _JS
 
 @if (IsProcessing)
 {
@@ -17,47 +21,68 @@ else
 
             <hr />
             <div class="px-3">
-                <p>Order Id:</p>
-                <p>Name: </p>
-                <p>Email: </p>
-                <p>Phone: </p>
-                <p>Order Status:  </p>
+                <p>Order Id: @OrderHeader.Id</p>
+                <p>Name: @OrderHeader.Name </p>
+                <p>Email: @OrderHeader.Email </p>
+                <p>Phone: @OrderHeader.PhoneNumber </p>
+                <p>Order Status: @OrderHeader.Status  </p>
             </div>
             <hr />
             <div class="card-body">
                 <h4 class="text-success">Menu Items</h4>
 
+                @foreach (var details in OrderHeader.OrderDetails)
+                {
 
-                <div class="d-flex">
-                    <div class="d-flex w-100 justify-content-between">
-                        <p>
-                            &nbsp; -- ProductName
-                        </p>
-                        <p>
-                            Price x Count =
-                        </p>
+
+                    <div class="d-flex">
+                        <div class="d-flex w-100 justify-content-between">
+                            <p>
+                                @details.ProductName
+                            </p>
+                            <p>
+                                @details.Price.ToString("C", CultureInfo.GetCultureInfo("en-us")) x @details.Count =
+                            </p>
+                        </div>
+                        <div class="ps-4">
+
+                            @((details.Price * @details.Count).ToString("C", CultureInfo.GetCultureInfo("en-us")))
+                        </div>
+
                     </div>
-                    <div class="ps-4">
-                        TOTAL
-                    </div>
-
-                </div>
-
+                }
 
                 <hr />
-                <h4 class="text-success text-end">
-                    Order Total
-                </h4>
+
+                <div class="justify-content-between d-flex">
+                    <p>Total</p>
+                    <h4 class="text-success text-end">
+                        @OrderHeader.OrderTotal
+                    </h4>
+                </div>
+                    
                 <hr />
 
                 <div class="row">
                     <div class="col-5">
-                        <a href="" class="btn btn-secondary  m-2 p-2" style="width:150px;">Back to Orders</a>
+                        <a href="order/list" class="btn btn-secondary  m-2 p-2" style="width:150px;">Back to Orders</a>
                     </div>
                     <div class="col-7 text-end">
-                        <button class="btn btn-danger m-2 p-2" style="width:150px;">Cancelled</button>
-                        <button class="btn btn-primary m-2 p-2" style="width:150px;">Ready for Pickup</button>
-                        <button class="btn btn-success m-2 p-2" style="width:150px;">Completed</button>
+                        @if (OrderHeader.Status != SD.StatusCompleted && OrderHeader.Status != SD.StatusCancelled
+                            && _AuthenticationStateProvider.GetAuthenticationStateAsync().GetAwaiter().GetResult().User?.IsInRole(SD.Role_Admin)== true)
+                        {
+                            <button class="btn btn-danger m-2 p-2" @onclick="()=>UpdateStatus(SD.StatusCancelled)"  style="width:150px;">Cancelled</button>
+                            @if (OrderHeader.Status == SD.StatusPending)
+                            {
+                                <button class="btn btn-primary m-2 p-2" @onclick="()=>UpdateStatus(SD.StatusReadyToPickUp)" style="width:150px;">Ready for Pickup</button>
+                            }
+                            @if (OrderHeader.Status == SD.StatusReadyToPickUp)
+                            {
+                                <button class="btn btn-success m-2 p-2" @onclick="()=>UpdateStatus(SD.StatusCompleted)" style="width:150px;">Completed</button>
+                            }
+
+
+                        }
                     </div>
                 </div>
             </div>
@@ -108,7 +133,13 @@ else
     {
         OrderHeader = await _orderRepository.GetAsync(Id);
 
-        
+
+    }
+    private async Task UpdateStatus(string newStatus)
+    {
+      await   _orderRepository.UpdateStatusAsync(Id, newStatus);
+        _JS?.ToastrSuccess("Status updated successfully"+ newStatus);
+
     }
 
 
